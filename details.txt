@@ -1,0 +1,4 @@
+Job Description: looking for good developer
+Technology: javascript
+Experience in Industry: 3
+CGPA Filteration: 8.0

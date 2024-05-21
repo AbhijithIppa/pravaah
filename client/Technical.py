@@ -1,0 +1,324 @@
+import streamlit as st
+from datetime import datetime
+import math
+
+#langchain------------------------------------------------------------------------------
+
+from langchain.chains import LLMChain
+from langchain.memory import ConversationBufferMemory
+from langchain_core.prompts import PromptTemplate
+from langchain_openai import OpenAI
+import streamlit as st
+import os
+from dotenv import load_dotenv
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import FAISS
+from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain.chains.question_answering import load_qa_chain
+from fpdf import FPDF
+# import torch
+# from sentence_transformers import SentenceTransformer, util
+
+# # Check if a GPU is available and use it if possible
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# print(f"Using device: {device}")
+# model = SentenceTransformer('all-MiniLM-L6-v2')
+# model = model.to(device)
+
+
+
+os.environ["OPENAI_API_KEY"]=os.getenv("OPENAI_API_KEY")
+os.environ["LANGCHAIN_TRACING_V2"]="true"
+os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
+
+technology_arr=["Javascript","Tensorflow"]
+levels_arr=["basic","normal","hard"]
+candidate_response=""
+k=4
+
+ai_answer=""
+response=[]
+response_ans=[]
+response_ans.append("")
+
+memory = ConversationBufferMemory(memory_key="chat_history")
+
+llm = OpenAI()
+
+def get_ai_response(candidate_response):
+    global k
+    if(k==0):
+        
+        template = """You are an expert recruiter conducting a technical interview for a software engineering position. 
+        Previous conversation:
+        {chat_history}
+        AI:You ask 1 question based on the {tech_level} of questions provided. also provide very short answer. you must return question:"",answer:""
+        """
+
+        prompt = PromptTemplate(
+            input_variables=["chat_history", "tech_level"], template=template
+        )
+        llm_chain = LLMChain(
+        llm=llm,
+        prompt=prompt,
+        verbose=True,
+        memory=memory,
+        )
+
+        tech=str(technology_arr[0]+" "+levels_arr[0])
+        data=llm_chain({"tech_level":tech})
+        question, answer = data['text'].split("\n")[1], data['text'].split("\n")[2]
+        response.append(question)
+        response_ans.append(answer)       
+        candidate_response={candidate_response}
+        memory.chat_memory.add_user_message(candidate_response)
+        
+    else:
+
+
+        template = """You are an expert recruiter conducting a technical interview for a software engineering position. 
+        Previous conversation:
+        {chat_history}
+        AI:You ask 1 question based on the user input {candidate_response} of questions provided. also provide very short answer. you must return first question:"",answer:""
+        """
+
+        prompt = PromptTemplate(
+            input_variables=["chat_history", "candidate_response"], template=template
+        )
+        llm_chain = LLMChain(
+        llm=llm,
+        prompt=prompt,
+        verbose=True,
+        memory=memory,
+        )
+
+        tech=str(technology_arr[0]+" "+levels_arr[0])
+        data=llm_chain({"candidate_response":candidate_response})
+        # response.append(data['text'])
+        question, answer = data['text'].split("\n")[1], data['text'].split("\n")[2]
+        response.append(question)
+        response_ans.append(answer)
+        candidate_response={candidate_response}
+        memory.chat_memory.add_user_message(candidate_response)
+
+    print("data['text']:",response)
+    k+=1
+    return response[-1]
+
+def get_project_response(candidate_response):
+    def load_pdf(file_path):
+        loader = PyPDFLoader(file_path)
+        documents = loader.load()
+        return documents
+    pdf_file_path = 'resume.pdf'
+    documents = load_pdf(pdf_file_path)
+    
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    docs = text_splitter.split_documents(documents)
+    
+    embeddings = OpenAIEmbeddings()
+    vectorstore = FAISS.from_documents(docs, embeddings)
+    
+    llm = OpenAI()
+    qa_chain = load_qa_chain(llm, chain_type="stuff")
+    
+    query = "Act as AI interviewer , ask 1 question about his projects"
+    docs = vectorstore.similarity_search(query)
+    answer = qa_chain.run(input_documents=docs, question=query)
+    return answer
+
+def save_transcript(chat_history):
+# Chat history data
+    data = chat_history
+
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 12)
+            self.cell(0, 10, 'Chat Transcript', 0, 1, 'C')
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, 'Page ' + str(self.page_no()), 0, 0, 'C')
+
+    # Create instance of FPDF class
+    pdf = PDF()
+
+    # Add a page
+    pdf.add_page()
+
+    # Set title and author
+    pdf.set_title('Chat Transcript')
+    pdf.set_author('Generated by Python Script')
+
+    # Add chat history
+    pdf.set_font('Arial', '', 12)
+    for line in data['chat_history'].split('\n'):
+        pdf.cell(0, 10, line, 0, 1)
+
+    # Save the pdf with name .pdf
+    pdf.output('chat_transcript.pdf')
+
+    print("PDF created successfully!")
+
+
+
+#langchain-----------------------------------------------------------------------------
+
+#BERT-----------------------------------------------------------------------------------
+
+def similarity(candidate_response,answer):
+    if(candidate_response=="ready" or candidate_response==""):
+        return 0
+    answer_embedding = model.encode(answer, convert_to_tensor=True).to(device)
+    responder_input_embedding = model.encode(candidate_response, convert_to_tensor=True).to(device)
+    similarity_score = util.pytorch_cos_sim(answer_embedding, responder_input_embedding).item()
+    marks_out_of_5 = similarity_score * 5
+    return math.round(marks_out_of_5,2)
+
+#BERT---------------------------------------------------------------------------------
+
+def load_messages():
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = []
+        # Add initial AI message when no messages are present
+        st.session_state['messages'].append({
+            'username': "AI",
+            'text': "I am your AI interviewer. Enter 'ready' to start the interview.",
+   
+            'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+
+    return st.session_state['messages']
+
+# Function to save a new message
+def save_message(username, text):
+    messages = load_messages()
+
+    messages.append({'username': username, 'text': text,'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+    st.session_state['messages'] = messages
+
+# Main app
+def main():
+    st.set_page_config(page_title="Chat App", page_icon=":speech_balloon:")
+
+    
+    st.markdown("""
+    <style>
+        .main-title {
+            font-size: 2.5rem;
+            color: #FFA500;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .sidebar .block-container {
+            padding-top: 2rem;
+        }
+        .chat-message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #333333;
+            color: white;
+            display: flex;
+            align-items: center;
+        }
+        .chat-message:hover {
+            background-color: #2b2b2b;
+        }
+        .message-time {
+            font-size: 0.8rem;
+            color: #888;
+            margin-left: auto;
+        }
+        .form-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .form-container .css-1cpxqw2 {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+        .form-container .stButton button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .form-container .stButton button:hover {
+            background-color: #45a049;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<h1 class="main-title">AI Bot</h1>', unsafe_allow_html=True)
+
+    # Sidebar for user information
+    with st.sidebar:
+        st.header("User Info")
+        username = st.text_input("Username", key="username")
+        if not username:
+            st.warning("Please enter a username to join the chat")
+            st.stop()
+
+    st.header("Chat")
+    if st.button("Submit", key="transcript_button"):
+        # Get current chat messages
+        messages = memory.load_memory_variables({})
+
+
+        # Save transcript as PDF
+        pdf_file_path = save_transcript(messages)
+
+        # Provide a link to download the PDF
+        # st.markdown(f"[Download Transcript PDF]({pdf_file_path})")
+
+    # Display chat messages
+    messages = load_messages()
+    for message in messages:
+        st.markdown(
+            f"""
+            <div class="chat-message">
+                <div>
+                    <strong>{message['username']}</strong>: {message['text']}
+                </div>
+                <div class="message-time">{message['time']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Input form for new messages
+    with st.form(key='message_form', clear_on_submit=True):
+        st.markdown('<div class="form-container">', unsafe_allow_html=True)
+        message_text = st.text_input("Your message")
+        submit_button = st.form_submit_button(label='Send')
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    if submit_button and message_text:
+        global k
+        # marks=similarity(candidate_response,response_ans[-1])
+        save_message(st.session_state['username'], message_text)
+        latest_user_message = message_text
+
+
+
+        if(k==0):
+            ai_question = get_ai_response("")
+        elif(k<2):
+            ai_question = get_ai_response(latest_user_message)
+        else:
+            ai_question = get_project_response(latest_user_message)
+
+        print("AI Response is ",ai_question,ai_answer)
+        save_message("AI", ai_question)
+        st.experimental_rerun()
+
+
+
+if __name__ == "__main__":
+    main()

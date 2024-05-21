@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Layout</title>
+    <style>
+        body {
+            background-color: #000; /* Black background */
+            color: #fff; /* White text */
+            font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .heading {
+            font-size: 2.5em;
+            margin-bottom: 40px;
+            color: #ede3cf; /* Orange color */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .card {
+            background-color: #333; /* Dark gray card background */
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 50px;
+            width: 200px;
+            text-align: center;
+        }
+        
+        .card a {
+            color: #FFA500; /* Orange links */
+            text-decoration: none;
+            display: block;
+            margin: 10px 10px;
+            padding: 10px 10px;
+            border: 1px solid #FFA500; /* Orange border */
+            border-radius: 5px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .card a:hover {
+            background-color: #FFA500; /* Orange background on hover */
+            color: #000; /* Black text on hover */
+        }
+    </style>
+</head>
+<body>
+    <h1 class="heading">Online Interview Process</h1>
+    <div class="container">
+        <div class="card">
+            
+            <a href="http://localhost:5000">Resume Shortlisting</a>
+          
+        </div>
+        <div class="card">
+            
+            <a href="http://localhost:6000">Technical Interview</a>
+         
+        </div>
+        <div class="card">
+           
+            <a href="http://localhost:7000">HR Interview</a>
+            
+        </div>
+    </div>
+</body>
+</html>

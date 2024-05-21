@@ -8,6 +8,7 @@ import numpy as np
 st.set_page_config(page_title="Creative Dashboard", layout="wide")
 
 # Function to generate sample data
+
 def generate_data():
     np.random.seed(42)
     dates = pd.date_range(start="2021-01-01", periods=100)

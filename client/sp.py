@@ -1,5 +1,6 @@
 import speech_recognition as sr
 import streamlit as st
+import Tech
 # import chat1
 def speech_to_text():
     recognizer = sr.Recognizer()
@@ -15,7 +16,11 @@ def speech_to_text():
             text = text.lower()
             with open(r"D:\abhijith\ML\pravaah\client\user_chatbot_msg.txt", "w") as file:
                 file.write(text)
-            
+            with open("video_transcript.txt", "a") as file:
+                file.write("AI:I am your AI interviewer. Enter 'ready' to start the interview.")
+                for i in range(0,5):
+                    file.write("User:",text)
+                    file.write("AI:",Tech.call_code_check.ai_question)
             print(f"{text}.")
         except sr.UnknownValueError:
             print("Could not understand audio")

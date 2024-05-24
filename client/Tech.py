@@ -37,7 +37,7 @@ memory = ConversationBufferMemory(memory_key="chat_history")
 llm = OpenAI()
 response = []
 # Load Lottie animation
-
+k=0
 
 def load_lottie(filepath: str):
     with open(filepath, "r") as f:
@@ -153,7 +153,7 @@ def get_project_response(candidate_response):
         documents = loader.load()
         return documents
 
-    pdf_file_path = 'path/to/resume.pdf'
+    pdf_file_path = r'D:\abhijith\ML\pravaah\resume.pdf'
     documents = load_pdf(pdf_file_path)
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, chunk_overlap=200)
@@ -168,7 +168,9 @@ def get_project_response(candidate_response):
     return answer
 
 
-def save_transcript(chat_history):
+def save_transcript():
+    with open(r'D:\abhijith\ML\pravaah\client\conversation.txt', 'r') as file:
+        chat_history = file.read()
     class PDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 12)
@@ -269,12 +271,17 @@ def call_code_check():
             code_answer += line
     ai_question = check_code(code_answer)
     save_message("AI", ai_question)
+    with open(r"D:\abhijith\ML\pravaah\client\conversation.txt","a") as conv:
+        conv.write("AI: " + ai_question+"\n")
+
 
     return ai_question
 
 
 # Main app
 def main():
+    global k
+    k+=1
     st.set_page_config(page_title="Chat App", page_icon=":speech_balloon:")
 
     st.markdown("""
@@ -332,7 +339,7 @@ def main():
     if st.button("Submit", key="transcript_button"):
         messages = memory.load_memory_variables({})
         print(messages)
-        save_transcript(messages['chat_history'])
+        save_transcript()
     st.markdown('<h1 class="main-title">AI Bot</h1>', unsafe_allow_html=True)
     st.markdown('<div class="lottie-container">', unsafe_allow_html=True)
     # sub_col1, sub_col2, sub_col3 = st.columns([1, 1, 1])
@@ -363,6 +370,9 @@ def main():
                     f.write(f"{code}\n")
                 ai_question = call_code_check()
                 save_message(st.session_state['username'], code)
+                with open(r"D:\abhijith\ML\pravaah\client\conversation.txt","a") as conv:
+                    conv.write("User: " + code+"\n")
+
 
                 st.success('Code saved!')
 
@@ -413,13 +423,16 @@ def main():
         try:
             sp.speech_to_text()
         except Exception as e:
-            st.error(f"Error processing audio: {e}")
+            a=12
+            # st.error(f"Error processing audio: {e}")
     else:
         st.warning("No recorded audio found to process.")
 
     if submit_button and message_text:
-        global k
+        
         save_message(st.session_state['username'], message_text)
+        with open(r"D:\abhijith\ML\pravaah\client\conversation.txt","a") as conv:
+            conv.write("User: " + message_text+"\n")
         # save_message(st.session_state['username'], message_text)
         latest_user_message = message_text
 
@@ -427,21 +440,26 @@ def main():
         print("kkkkkkkkkkkkkkkkkk", k)
         if k == 0:
             ai_question = get_ai_response("", k)
-        elif k < 2:
-            ai_question = get_ai_response(latest_user_message, k)
-        elif k == 3:
+        # elif k < 2:
+        #     ai_question = get_ai_response(latest_user_message, k)
+        elif k <= 3:
             ai_question = get_project_response("")
 
         elif k >= 4:
             ai_question = get_code()
-
-        k += 1
+        
+        # k += 1
+        
         save_message("AI", ai_question)
+        with open(r"D:\abhijith\ML\pravaah\client\conversation.txt", "a") as conv:
+            conv.write("AI: " + message_text + "\n")
+
+
         st.experimental_rerun()
 
 
 if __name__ == "__main__":
-    k = 3
+    
     response = []
 
     main()

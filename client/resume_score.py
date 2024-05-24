@@ -64,7 +64,8 @@ def llm():
     if(len(answer)>20):
         answer=str("Score"+":"+"57/100")
     st.write(answer)
-
+    with open(r"D:\abhijith\ML\pravaah\client\answer.txt","w") as f:
+        f.write(answer)
     return int(answer.split(':')[1].split("/")[0].strip())
 
 

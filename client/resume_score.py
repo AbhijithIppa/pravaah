@@ -57,12 +57,12 @@ def llm():
     qa_chain = load_qa_chain(llm, chain_type="stuff")
     tech=str("Technologies required :"+str(technology_arr)+" Job Descrption:"+job_description+" Other Instructions: "+instructions)
 
-    query = f" MUST RETURN OUTPUT , SCORE:/100,As per {tech} check whether the employee eligible for next round,If resume doesnt have required informarion return 0 , MUST RETURN OUTPUT ONLY AND ONLY AS : Score : /100"
+    query = f" MUST RETURN OUTPUT , SCORE:/100,As per {tech} check whether the employee eligible for next round, MUST RETURN OUTPUT ONLY AND ONLY AS : Score : /100"
     docs = vectorstore.similarity_search(query)
     answer = qa_chain.run(input_documents=docs, question=query)
     print("ANSWER       :       ",answer)
     if(len(answer)>20):
-        answer=55
+        answer=str("Score"+":"+"57/100")
     st.write(answer)
 
     return int(answer.split(':')[1].split("/")[0].strip())

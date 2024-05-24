@@ -2,13 +2,13 @@ import streamlit as st
 import os 
 import base64  # Import the base64 module
 
-def save_details(job_description, technology, experience, cgpa_filteration):
+def save_details(job_description, technology, experience, cgpa_filteration,instructions):
     with open("production/rules.txt", "w") as f:
         f.write(f"Job Description: {job_description}\n")
         f.write(f"Technology: {technology}\n")
         f.write(f"Experience in Industry: {experience}\n")
         f.write(f"CGPA Filteration: {cgpa_filteration}\n")
-
+        f.write(f"Instructions: {instructions}\n")
 def main():
     st.title("Job Details Entry")
 
@@ -16,9 +16,9 @@ def main():
     technology = st.text_input("Enter Technology:")
     experience = st.text_input("Enter Experience in Industry:")
     cgpa_filteration = st.text_input("Enter CGPA Filteration:")
-
+    instructions=st.text_input("Add extra instructions:")
     if st.button("Save Details"):
-        save_details(job_description, technology, experience, cgpa_filteration)
+        save_details(job_description, technology, experience, cgpa_filteration,instructions)
         st.success("Details saved successfully!")
 
     st.subheader("Saved Details:")

@@ -1,4 +1,5 @@
-Job Description: looking for good dev
-Technology: javascript
-Experience in Industry: 3
-CGPA Filteration: 8.0
+Job Description: Looking for data scientist and machine learning
+Technology: Pytorch,Tensorflow,LLMs,LangChain   
+Experience in Industry: 2 years
+CGPA Filteration: 8.0 CGPA
+Instructions: Good projects in transformers are encouraged.

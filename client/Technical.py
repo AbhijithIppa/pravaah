@@ -1,109 +1,86 @@
 import streamlit as st
 from datetime import datetime
-import math
-
-#langchain------------------------------------------------------------------------------
-
+import json
+import os
+from dotenv import load_dotenv
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import OpenAI
-import streamlit as st
-import os
-from dotenv import load_dotenv
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chains.question_answering import load_qa_chain
 from fpdf import FPDF
-# import torch
-# from sentence_transformers import SentenceTransformer, util
+import streamlit_lottie as st_lottie
+from streamlit_ace import st_ace
+import pyaudio
+import wave
+import readtext
+import sp
 
-# # Check if a GPU is available and use it if possible
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# print(f"Using device: {device}")
-# model = SentenceTransformer('all-MiniLM-L6-v2')
-# model = model.to(device)
+# Load environment variables
+load_dotenv()
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
 
-
-
-os.environ["OPENAI_API_KEY"]=os.getenv("OPENAI_API_KEY")
-os.environ["LANGCHAIN_TRACING_V2"]="true"
-os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
-
-technology_arr=["Javascript","Tensorflow"]
-levels_arr=["basic","normal","hard"]
-candidate_response=""
-k=4
-
-ai_answer=""
-response=[]
-response_ans=[]
-response_ans.append("")
-
+# Initialize variables and arrays
+technology_arr = []
+levels_arr = ["basic", "normal", "hard"]
+candidate_response = ""
+ai_answer = ""
+response = []
+response_ans = [""]
 memory = ConversationBufferMemory(memory_key="chat_history")
-
 llm = OpenAI()
 
-def get_ai_response(candidate_response):
-    global k
-    if(k==0):
-        
-        template = """You are an expert recruiter conducting a technical interview for a software engineering position. 
+# Load Lottie animation
+def load_lottie(filepath: str):
+    with open(filepath, "r") as f:
+        return json.load(f)
+
+human_talking = load_lottie(r"D:\abhijith\ML\pravaah\assets\coat.json")
+
+# Load rules from file
+with open(r"D:\abhijith\ML\pravaah\production\rules.txt", "r") as f:
+    for line in f:
+        key, value = line.split(': ')
+        value = value.strip()
+        if key == "Job Description":
+            job_description = value
+        elif key == "Technology":
+            technology_arr.append(value)
+        elif key == "Instructions":
+            instructions = value
+
+# Functions for AI interaction
+def get_ai_response(candidate_response, k):
+    if k == 0:
+        template = """You are an expert recruiter conducting a technical interview for a software engineering position.
         Previous conversation:
         {chat_history}
-        AI:You ask 1 question based on the {tech_level} of questions provided. also provide very short answer. you must return question:"",answer:""
+        AI: You ask 1 question based on the {tech_level} of questions provided. also provide very short answer. you must return question:"",answer:""
         """
-
-        prompt = PromptTemplate(
-            input_variables=["chat_history", "tech_level"], template=template
-        )
-        llm_chain = LLMChain(
-        llm=llm,
-        prompt=prompt,
-        verbose=True,
-        memory=memory,
-        )
-
-        tech=str(technology_arr[0]+" "+levels_arr[0])
-        data=llm_chain({"tech_level":tech})
-        question, answer = data['text'].split("\n")[1], data['text'].split("\n")[2]
-        response.append(question)
-        response_ans.append(answer)       
-        candidate_response={candidate_response}
-        memory.chat_memory.add_user_message(candidate_response)
-        
+        prompt = PromptTemplate(input_variables=["chat_history", "tech_level"], template=template)
+        llm_chain = LLMChain(llm=llm, prompt=prompt, verbose=True, memory=memory)
+        tech = f"Technologies required: {technology_arr} Job Description: {job_description} Other Instructions: {instructions}"
+        data = llm_chain({"tech_level": tech})
     else:
-
-
-        template = """You are an expert recruiter conducting a technical interview for a software engineering position. 
+        template = """You are an expert recruiter conducting a technical interview for a software engineering position.
         Previous conversation:
         {chat_history}
-        AI:You ask 1 question based on the user input {candidate_response} of questions provided. also provide very short answer. you must return first question:"",answer:""
+        AI: You ask 1 question based on the user input {candidate_response} of questions provided. also provide very short answer. you must return first question:"",answer:""
         """
+        prompt = PromptTemplate(input_variables=["chat_history", "candidate_response"], template=template)
+        llm_chain = LLMChain(llm=llm, prompt=prompt, verbose=True, memory=memory)
+        data = llm_chain({"candidate_response": candidate_response})
 
-        prompt = PromptTemplate(
-            input_variables=["chat_history", "candidate_response"], template=template
-        )
-        llm_chain = LLMChain(
-        llm=llm,
-        prompt=prompt,
-        verbose=True,
-        memory=memory,
-        )
-
-        tech=str(technology_arr[0]+" "+levels_arr[0])
-        data=llm_chain({"candidate_response":candidate_response})
-        # response.append(data['text'])
-        question, answer = data['text'].split("\n")[1], data['text'].split("\n")[2]
-        response.append(question)
-        response_ans.append(answer)
-        candidate_response={candidate_response}
-        memory.chat_memory.add_user_message(candidate_response)
-
-    print("data['text']:",response)
-    k+=1
+    question, answer = data['text'].split("\n")[1], data['text'].split("\n")[2]
+    response.append(question)
+    response_ans.append(answer)
+    memory.chat_memory.add_user_message(candidate_response)
     return response[-1]
 
 def get_project_response(candidate_response):
@@ -111,27 +88,21 @@ def get_project_response(candidate_response):
         loader = PyPDFLoader(file_path)
         documents = loader.load()
         return documents
-    pdf_file_path = 'resume.pdf'
+
+    pdf_file_path = 'path/to/resume.pdf'
     documents = load_pdf(pdf_file_path)
-    
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     docs = text_splitter.split_documents(documents)
-    
     embeddings = OpenAIEmbeddings()
     vectorstore = FAISS.from_documents(docs, embeddings)
-    
     llm = OpenAI()
     qa_chain = load_qa_chain(llm, chain_type="stuff")
-    
-    query = "Act as AI interviewer , ask 1 question about his projects"
+    query = "Act as AI interviewer, ask 1 question about his projects"
     docs = vectorstore.similarity_search(query)
     answer = qa_chain.run(input_documents=docs, question=query)
     return answer
 
 def save_transcript(chat_history):
-# Chat history data
-    data = chat_history
-
     class PDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 12)
@@ -142,68 +113,82 @@ def save_transcript(chat_history):
             self.set_font('Arial', 'I', 8)
             self.cell(0, 10, 'Page ' + str(self.page_no()), 0, 0, 'C')
 
-    # Create instance of FPDF class
     pdf = PDF()
-
-    # Add a page
     pdf.add_page()
-
-    # Set title and author
     pdf.set_title('Chat Transcript')
     pdf.set_author('Generated by Python Script')
-
-    # Add chat history
     pdf.set_font('Arial', '', 12)
-    for line in data['chat_history'].split('\n'):
+    for line in chat_history.split('\n'):
         pdf.cell(0, 10, line, 0, 1)
-
-    # Save the pdf with name .pdf
     pdf.output('chat_transcript.pdf')
+    st.success("PDF created successfully!")
 
-    print("PDF created successfully!")
-
-
-
-#langchain-----------------------------------------------------------------------------
-
-#BERT-----------------------------------------------------------------------------------
-
-def similarity(candidate_response,answer):
-    if(candidate_response=="ready" or candidate_response==""):
-        return 0
-    answer_embedding = model.encode(answer, convert_to_tensor=True).to(device)
-    responder_input_embedding = model.encode(candidate_response, convert_to_tensor=True).to(device)
-    similarity_score = util.pytorch_cos_sim(answer_embedding, responder_input_embedding).item()
-    marks_out_of_5 = similarity_score * 5
-    return math.round(marks_out_of_5,2)
-
-#BERT---------------------------------------------------------------------------------
-
+# Load chat messages
 def load_messages():
     if 'messages' not in st.session_state:
-        st.session_state['messages'] = []
-        # Add initial AI message when no messages are present
-        st.session_state['messages'].append({
-            'username': "AI",
-            'text': "I am your AI interviewer. Enter 'ready' to start the interview.",
-   
-            'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        })
-
+        st.session_state['messages'] = [{'username': "AI", 'text': "I am your AI interviewer. Enter 'ready' to start the interview.", 'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}]
     return st.session_state['messages']
 
-# Function to save a new message
+# Save a new message
 def save_message(username, text):
     messages = load_messages()
-
-    messages.append({'username': username, 'text': text,'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+    messages.append({'username': username, 'text': text, 'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
     st.session_state['messages'] = messages
+
+def get_code():
+    template = """You are an expert coder conducting a technical interview for a software engineering position. 
+    Previous conversation:
+    {chat_history}
+    AI:You ask 1 coding question where user need to write code on editor based on the DSA of questions provided. you MUST question:""
+    """
+
+    prompt = PromptTemplate(
+        input_variables=["chat_history", "tech_level"], template=template
+    )
+    llm_chain = LLMChain(
+        llm=llm,
+        prompt=prompt,
+        verbose=True,
+        memory=memory,
+    )
+
+    tech = str("Technologies required :" + str(technology_arr) + " Job Descrption:" + job_description + " Other Instructions: " + instructions)
+    data = llm_chain({"tech_level": tech})
+    question = data['text'].split("\n")[1]
+    response.append(question)
+    candidate_response = ""
+    memory.chat_memory.add_user_message(candidate_response)
+    return question
+
+def check_code(question, code_ans):
+    template = """You are an expert coder conducting a technical interview for a software engineering position. 
+    Previous conversation:
+    {chat_history}
+    AI:Check whether answer is correct code for given question {tech_level}, If YES, then add some trick in question,If NO ask technical question based on user mistake
+    """
+
+    prompt = PromptTemplate(
+        input_variables=["chat_history", "tech_level"], template=template
+    )
+    llm_chain = LLMChain(
+        llm=llm,
+        prompt=prompt,
+        verbose=True,
+        memory=memory,
+    )
+
+    tech = str("Question :" + str(question) + " User Response" + str(code_ans))
+    data = llm_chain({"tech_level": tech})
+    question = data['text'].split("\n")[1]
+    response.append(question)
+    candidate_response = ""
+    memory.chat_memory.add_user_message(candidate_response)
+    return question
 
 # Main app
 def main():
     st.set_page_config(page_title="Chat App", page_icon=":speech_balloon:")
 
-    
     st.markdown("""
     <style>
         .main-title {
@@ -258,6 +243,33 @@ def main():
     """, unsafe_allow_html=True)
 
     st.markdown('<h1 class="main-title">AI Bot</h1>', unsafe_allow_html=True)
+    st.markdown('<div class="lottie-container">', unsafe_allow_html=True)
+    # sub_col1, sub_col2, sub_col3 = st.columns([1, 1, 1])
+    # with sub_col1:
+    st_lottie.st_lottie(human_talking, key="1", height=200, width=200)
+    # with sub_col2:
+    #     st_lottie.st_lottie(human_talking, key="2", height=200, width=200)
+    # with sub_col3:
+    #     st_lottie.st_lottie(human_talking, key="3", height=200, width=200)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Toggle button for code editor visibility
+    if 'editor_visible' not in st.session_state:
+        st.session_state['editor_visible'] = False
+
+    if st.button("Toggle Code Editor"):
+        st.session_state['editor_visible'] = not st.session_state['editor_visible']
+
+    if st.session_state['editor_visible']:
+        st.markdown('<h3>Code Editor</h3>', unsafe_allow_html=True)
+        with st.form(key='code_form'):
+            code = st_ace(value='print("Hello, Streamlit!")', language='python', theme='monokai', key='ace-editor', height=300)
+            submit_code_button = st.form_submit_button(label='Submit Code')
+            if submit_code_button:
+                st.session_state['saved_code'] = code
+                with open('./code_answer.txt', "w") as f:
+                    f.write(f"{code}\n")
+                st.success('Code saved!')
 
     # Sidebar for user information
     with st.sidebar:
@@ -269,15 +281,8 @@ def main():
 
     st.header("Chat")
     if st.button("Submit", key="transcript_button"):
-        # Get current chat messages
         messages = memory.load_memory_variables({})
-
-
-        # Save transcript as PDF
-        pdf_file_path = save_transcript(messages)
-
-        # Provide a link to download the PDF
-        # st.markdown(f"[Download Transcript PDF]({pdf_file_path})")
+        save_transcript(messages['chat_history'])
 
     # Display chat messages
     messages = load_messages()
@@ -301,24 +306,26 @@ def main():
 
     if submit_button and message_text:
         global k
-        # marks=similarity(candidate_response,response_ans[-1])
         save_message(st.session_state['username'], message_text)
         latest_user_message = message_text
 
-
-
-        if(k==0):
-            ai_question = get_ai_response("")
-        elif(k<2):
-            ai_question = get_ai_response(latest_user_message)
-        else:
-            ai_question = get_project_response(latest_user_message)
-
-        print("AI Response is ",ai_question,ai_answer)
+        
+        if k == 0:
+            ai_question = get_ai_response("", k)
+        elif k < 2:
+            ai_question = get_ai_response(latest_user_message, k)
+        elif k == 3:
+            ai_question = get_code()
+        elif k == 4:
+            code_answer = ""
+            with open("./code_answer.txt", "r") as f:
+                for line in f:
+                    code_answer += line
+            ai_question = check_code(ai_question,code_answer)
+        k += 1
         save_message("AI", ai_question)
         st.experimental_rerun()
 
-
-
 if __name__ == "__main__":
+    k = 3
     main()
